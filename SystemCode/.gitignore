@@ -1,0 +1,47 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+dist/
+dist-ssr/
+.vite/
+*.local
+.env
+.env.*.local
+
+# Logs
+logs
+*.log
+lerna-debug.log*
+
+# Python
+venv/
+venv*/
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+pip-wheel-metadata/
+python-eggs/
+.pytest_cache/
+.mypy_cache/
+
+# IDEs / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+coverage/
+*.cover
+coverage.xml
+
+# Misc
+*.swp
+*.swo
+*.tmp
