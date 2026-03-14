@@ -80,3 +80,16 @@ data/
 ```
 
 Move this `data/` folder into `SystemCode/data/training/` before starting any model training.
+
+### Filename format
+
+Each file is named `{ActorID}_{SentenceCode}_{EmotionCode}_{LevelCode}`, e.g. `1001_IEO_HAP_HI.wav`.
+
+| Component | Example | Meaning |
+|-----------|---------|---------|
+| `ActorID` | `1001` | Unique actor identifier |
+| `SentenceCode` | `IEO` | The spoken sentence |
+| `EmotionCode` | `HAP` | Emotion label — matches the subdirectory name |
+| `LevelCode` | `HI` | Emotional intensity: `LO` (low), `MD` (medium), `HI` (high), `XX` (not applicable) |
+
+`XX` is used exclusively for `NEU` (neutral), since neutral has no meaningful intensity variation. This is why NEU has fewer files than the other emotion classes.

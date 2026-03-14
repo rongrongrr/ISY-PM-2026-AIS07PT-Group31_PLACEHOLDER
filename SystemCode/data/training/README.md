@@ -45,6 +45,19 @@ SystemCode/data/training/
 
 Each emotion subdirectory contains paired `.wav` and `.png` files (mel-spectrogram). Use the PNGs for image-based models (CNN, ViT, YOLO, DETR) and the WAVs for audio-based models.
 
+### Filename format
+
+Each file is named `{ActorID}_{SentenceCode}_{EmotionCode}_{LevelCode}`, e.g. `1001_IEO_HAP_HI.wav`.
+
+| Component | Example | Meaning |
+|-----------|---------|---------|
+| `ActorID` | `1001` | Unique actor identifier |
+| `SentenceCode` | `IEO` | The spoken sentence |
+| `EmotionCode` | `HAP` | Emotion label — matches the subdirectory name |
+| `LevelCode` | `HI` | Emotional intensity: `LO` (low), `MD` (medium), `HI` (high), `XX` (not applicable) |
+
+`XX` is used exclusively for `NEU` (neutral), since neutral has no meaningful intensity variation — this is why NEU has fewer samples than the other classes. The subdirectory name is the class label used for training; the level code is available in the filename if you want to use intensity as an additional signal.
+
 ---
 
 ## Creating your training notebook
