@@ -45,3 +45,9 @@ coverage.xml
 *.swp
 *.swo
 *.tmp
+
+# Training data (should remain local)
+data/training/data/*
+
+# Mac
+.DS_Store
