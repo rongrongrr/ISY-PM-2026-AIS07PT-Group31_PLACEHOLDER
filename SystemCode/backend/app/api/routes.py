@@ -2,16 +2,87 @@ from fastapi import APIRouter, UploadFile, File, Form
 from typing import List
 import json
 import numpy as np
+import os
+from pathlib import Path
 from app.services.audio_processor import process_audio
-from app.services.spectrogram import generate_spectrogram
+from app.services.spectrogram import generate_spectrogram, generate_spectrogram_for_model
+from app.models.emotion_model import predict_emotion
 
 router = APIRouter()
+
+# Model configuration: maps model filename/id to display name and description
+MODEL_CONFIG = {
+    "model_resnet50.pth": {
+        "id": "model_resnet50.pth",
+        "name": "ResNet50 v1",
+        "description": "Pretrained ResNet50 on CREMA-D dataset"
+    }
+}
+
+EMOTION_LABELS = {
+    "ANG": "Angry",
+    "DIS": "Disgust",
+    "FEA": "Fear",
+    "HAP": "Happy",
+    "NEU": "Neutral",
+    "SAD": "Sad",
+}
 
 # ============================================================================
 # TOGGLE THIS FLAG TO SWITCH BETWEEN DUMMY DATA AND REAL MODELS
 # ============================================================================
-USE_DUMMY_MODELS = True  # Set to False when real models are ready
+USE_DUMMY_MODELS = False  # Set to False when real models are ready
 # ============================================================================
+
+
+def localize_emotion_label(label: str) -> str:
+    return EMOTION_LABELS.get(label, label)
+
+
+@router.get("/models")
+async def list_available_models():
+    """
+    List all available emotion classification models
+    """
+    try:
+        models_dir = Path(__file__).parent.parent.parent.parent / "data" / "training"
+        print(f"[DEBUG] Looking for models in: {models_dir}")
+        print(f"[DEBUG] Directory exists: {models_dir.exists()}")
+        
+        available_models = []
+        
+        # First try to find models in MODEL_CONFIG
+        for model_id, config in MODEL_CONFIG.items():
+            model_path = models_dir / model_id
+            print(f"[DEBUG] Checking {model_id}: exists={model_path.exists()}")
+            if model_path.exists():
+                available_models.append({
+                    "id": config["id"],
+                    "name": config["name"],
+                    "description": config["description"],
+                    "path": str(model_path)
+                })
+        
+        # If no models found in config, try to auto-discover .pth files
+        if not available_models and models_dir.exists():
+            print("[DEBUG] No configured models found, auto-discovering...")
+            for pth_file in models_dir.glob("*.pth"):
+                print(f"[DEBUG] Found model file: {pth_file}")
+                available_models.append({
+                    "id": pth_file.stem,
+                    "name": pth_file.stem.replace("_", " ").title(),
+                    "description": f"Model: {pth_file.name}",
+                    "path": str(pth_file)
+                })
+        
+        print(f"[DEBUG] Returning {len(available_models)} models")
+        return {"models": available_models}
+    
+    except Exception as e:
+        print(f"[ERROR] Failed to list models: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"models": [], "error": str(e)}
 
 @router.post("/analyze")
 async def analyze_audio(
@@ -19,39 +90,94 @@ async def analyze_audio(
     models: str = Form(...)
 ):
     """
-    Analyze audio file and return spectrograms with emotion labels
+    Analyze audio file and return spectrogram and emotion labels
     """
-    # Parse model IDs
     model_ids = json.loads(models)
-    
-    # Read audio file
     audio_bytes = await audio.read()
-    
-    # Process audio
-    audio_data, sr = process_audio(audio_bytes)
+    audio_data, sr = process_audio(audio_bytes, filename=audio.filename)
     duration = len(audio_data) / sr
-    
-    # Process audio and generate spectrograms for each model
+
     results = []
     for model_id in model_ids:
         if USE_DUMMY_MODELS:
-            # DUMMY MODE: Generate fake data
             spectrogram_data = generate_dummy_spectrogram()
-            emotions = generate_dummy_emotions(duration)
+            emotion_probs = {"DUMMY": 1.0}
+            top_emotion = "DUMMY"
+            confidence = 1.0
+            segments = generate_dummy_emotions(duration)
         else:
-            # REAL MODE: Use actual models
             spectrogram_data = generate_spectrogram(audio_data, sr)
-            emotions = predict_emotions(audio_data, sr, model_id)
-        
+            model_spec = generate_spectrogram_for_model(audio_data, sr)
+            emotion_probs = predict_emotion(model_spec)
+            top_emotion = max(emotion_probs, key=emotion_probs.get)
+            confidence = float(emotion_probs[top_emotion])
+            segments = [
+                {
+                    "start": 0.0,
+                    "end": round(duration, 2),
+                    "emotion": localize_emotion_label(top_emotion),
+                    "confidence": round(confidence, 2),
+                }
+            ]
+
         results.append({
             "modelId": model_id,
             "modelName": get_model_name(model_id),
-            "spectrogramData": spectrogram_data.tolist() if hasattr(spectrogram_data, 'tolist') else spectrogram_data,
-            "emotions": emotions,
-            "duration": float(duration)
+            "duration": float(duration),
+            "sampleRate": sr,
+            "spectrogramData": spectrogram_data.tolist() if isinstance(spectrogram_data, np.ndarray) else spectrogram_data,
+            "emotions": emotion_probs,
+            "emotionDistribution": [
+                {"emotion": localize_emotion_label(label), "label": label, "confidence": float(prob)}
+                for label, prob in emotion_probs.items()
+            ],
+            "topEmotion": top_emotion,
+            "topEmotionName": localize_emotion_label(top_emotion),
+            "confidence": confidence,
+            "segments": segments,
         })
-    
-    return {"spectrograms": results}
+
+    return {"results": results}
+
+
+@router.post("/analyze-emotion")
+async def analyze_emotion(audio: UploadFile = File(...)):
+    """
+    Analyze audio file and return emotion predictions and spectrogram data
+    """
+    audio_bytes = await audio.read()
+    audio_data, sr = process_audio(audio_bytes, filename=audio.filename)
+    duration = len(audio_data) / sr
+
+    spectrogram_data = generate_spectrogram(audio_data, sr)
+    model_spec = generate_spectrogram_for_model(audio_data, sr)
+    emotion_probs = predict_emotion(model_spec)
+
+    top_emotion = max(emotion_probs, key=emotion_probs.get)
+    top_emotion_name = localize_emotion_label(top_emotion)
+    confidence = float(emotion_probs[top_emotion])
+
+    return {
+        "duration": float(duration),
+        "sampleRate": sr,
+        "spectrogramData": spectrogram_data.tolist(),
+        "emotions": emotion_probs,
+        "emotionDistribution": [
+            {"emotion": localize_emotion_label(label), "label": label, "confidence": float(prob)}
+            for label, prob in emotion_probs.items()
+        ],
+        "topEmotion": top_emotion,
+        "topEmotionName": top_emotion_name,
+        "confidence": confidence,
+        "segments": [
+            {
+                "start": 0.0,
+                "end": round(duration, 2),
+                "emotion": top_emotion_name,
+                "confidence": confidence,
+            }
+        ],
+    }
 
 def get_model_name(model_id: str) -> str:
     names = {
@@ -91,14 +217,25 @@ def generate_dummy_emotions(duration: float):
 
 def predict_emotions(audio_data, sr, model_id):
     """
-    TODO: Implement actual emotion prediction with real models
-    This is where you'll load your trained models and make predictions
+    Predict emotions using the trained model
     """
-    # Placeholder for real model implementation
-    duration = len(audio_data) / sr
+    # Generate spectrogram for model
+    spectrogram = generate_spectrogram_for_model(audio_data, sr)
     
-    # Example structure - replace with actual model predictions
+    # Get emotion predictions
+    emotion_probs = predict_emotion(spectrogram)
+    
+    # Convert to the expected format (list of segments)
+    # For now, return a single segment with the top emotion
+    duration = len(audio_data) / sr
+    top_emotion = max(emotion_probs, key=emotion_probs.get)
+    confidence = emotion_probs[top_emotion]
+    
     return [
-        {"start": 0, "end": 1, "emotion": "Happy", "confidence": 0.87},
-        {"start": 1, "end": 2.5, "emotion": "Neutral", "confidence": 0.72},
+        {
+            "start": 0.0,
+            "end": round(duration, 2),
+            "emotion": top_emotion,
+            "confidence": round(confidence, 2)
+        }
     ]

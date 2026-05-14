@@ -1,33 +1,44 @@
 import React from "react";
 
 export default function ModelSelection({
-  models,
-  selectedModels,
-  toggleModel,
+  availableModels,
+  selectedModel,
+  onModelChange,
 }) {
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 mb-6 border border-white/20">
-      <h2 className="text-xl font-semibold text-white mb-4">Select Models</h2>
-
-      <div className="space-y-3">
-        {models.map((model) => (
-          <label
-            key={model.id}
-            className="flex items-start gap-3 p-4 bg-white/5 rounded-lg cursor-pointer hover:bg-white/10 transition-colors"
-          >
-            <input
-              type="checkbox"
-              checked={selectedModels[model.id]}
-              onChange={() => toggleModel(model.id)}
-              className="mt-1 w-5 h-5 rounded border-white/30 text-purple-600 focus:ring-purple-500"
-            />
-            <div className="flex-1">
-              <div className="text-white font-medium">{model.name}</div>
-              <div className="text-purple-200 text-sm">{model.description}</div>
-            </div>
-          </label>
-        ))}
-      </div>
+    <div className="rounded-2xl bg-slate-900/80 p-6 border border-violet-500/20 shadow-lg">
+      <label
+        htmlFor="model-select"
+        className="block text-lg font-semibold text-white mb-3"
+      >
+        Select Model
+      </label>
+      <select
+        id="model-select"
+        value={selectedModel || ""}
+        onChange={(e) => onModelChange(e.target.value)}
+        disabled={availableModels.length === 0}
+        className="w-full bg-slate-950 text-white border border-violet-500/30 rounded-xl p-3 font-medium cursor-pointer hover:border-violet-400/50 transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {availableModels.length === 0 ? (
+          <option value="">No models available</option>
+        ) : (
+          availableModels.map((model) => (
+            <option key={model.id} value={model.id}>
+              {model.name}
+            </option>
+          ))
+        )}
+      </select>
+      {availableModels.length > 0 && selectedModel && (
+        <p className="text-sm text-slate-400 mt-3">
+          {availableModels.find((m) => m.id === selectedModel)?.description ||
+            ""}
+        </p>
+      )}
+      {availableModels.length > 0 && !selectedModel && (
+        <p className="text-xs text-violet-400 mt-2">✓ Models loaded</p>
+      )}
     </div>
   );
 }

@@ -1,49 +1,41 @@
-import React, { useState, useRef } from "react";
-import { analyzeAudio } from "../utils/api";
+import React, { useState, useRef, useEffect } from "react";
+import { analyzeEmotion, fetchAvailableModels } from "../utils/api";
 import AudioInput from "./AudioInput";
-import ModelSelection from "./ModelSelection";
+import EmotionResults from "./EmotionResults";
 import SpectrogramResults from "./SpectrogramResults";
+import ModelSelection from "./ModelSelection";
 
 export default function AudioEmotionAnalyzer() {
   const [audioFile, setAudioFile] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState(null);
-  const [selectedModels, setSelectedModels] = useState({
-    baseline: true,
-    advanced: false,
-    ensemble: false,
-  });
-  const [spectrograms, setSpectrograms] = useState([]);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [emotionResults, setEmotionResults] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [availableModels, setAvailableModels] = useState([]);
+  const [selectedModel, setSelectedModel] = useState(null);
+  const [showSpectrogram, setShowSpectrogram] = useState(true);
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const fileInputRef = useRef(null);
 
-  const models = [
-    {
-      id: "baseline",
-      name: "Baseline Model",
-      description: "Fast, basic emotion detection",
-    },
-    {
-      id: "advanced",
-      name: "Advanced Model",
-      description: "Higher accuracy, slower processing",
-    },
-    {
-      id: "ensemble",
-      name: "Ensemble Model",
-      description: "Multiple models combined",
-    },
-  ];
+  useEffect(() => {
+    fetchAvailableModels()
+      .then((models) => {
+        setAvailableModels(models);
+        if (models.length > 0) {
+          setSelectedModel(models[0].id);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch models:", err));
+  }, []);
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file && file.type.startsWith("audio/")) {
       setAudioFile(file);
       setRecordedBlob(null);
-      setSpectrograms([]);
+      setEmotionResults(null);
     }
   };
 
@@ -58,10 +50,12 @@ export default function AudioEmotionAnalyzer() {
       };
 
       mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: "audio/wav" });
+        const blob = new Blob(audioChunksRef.current, {
+          type: mediaRecorderRef.current.mimeType || "audio/webm",
+        });
         setRecordedBlob(blob);
         setAudioFile(null);
-        setSpectrograms([]);
+        setEmotionResults(null);
         stream.getTracks().forEach((track) => track.stop());
       };
 
@@ -80,87 +74,188 @@ export default function AudioEmotionAnalyzer() {
     }
   };
 
-  const toggleModel = (modelId) => {
-    setSelectedModels((prev) => ({ ...prev, [modelId]: !prev[modelId] }));
-  };
-
-  const generateSpectrograms = async () => {
-    const activeModels = Object.entries(selectedModels)
-      .filter(([_, selected]) => selected)
-      .map(([id]) => models.find((m) => m.id === id));
-
-    if (activeModels.length === 0) {
-      alert("Please select at least one model");
-      return;
-    }
-
+  const analyzeEmotions = async () => {
     if (!audioFile && !recordedBlob) {
       alert("Please upload an audio file or record audio");
       return;
     }
 
-    setIsGenerating(true);
+    setIsAnalyzing(true);
 
     try {
-      const results = await fetchSpectrogramsFromBackend(
+      const results = await fetchEmotionAnalysisFromBackend(
         audioFile || recordedBlob,
-        activeModels,
       );
-      setSpectrograms(results);
+      setEmotionResults(results);
     } catch (error) {
-      console.error("Error generating spectrograms:", error);
-      alert("Failed to generate spectrograms. Please try again.");
+      console.error("Error analyzing emotions:", error);
+      alert("Failed to analyze emotions. Please try again.");
     } finally {
-      setIsGenerating(false);
+      setIsAnalyzing(false);
     }
   };
 
-  const fetchSpectrogramsFromBackend = async (audio, models) => {
-    const audioFile =
-      audio instanceof Blob && !(audio instanceof File)
-        ? new File([audio], "recording.wav", { type: "audio/wav" })
-        : audio;
-    const modelMap = {};
-    models.forEach((m) => (modelMap[m.id] = true));
-    const results = await analyzeAudio(audioFile, modelMap);
+  const fetchEmotionAnalysisFromBackend = async (audio) => {
+    let audioFile = audio;
+
+    if (audio instanceof Blob && !(audio instanceof File)) {
+      audioFile = await convertBlobToWavFile(audio);
+    }
+
+    const results = await analyzeEmotion(audioFile);
     return results;
   };
 
+  const convertBlobToWavFile = async (blob) => {
+    const arrayBuffer = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(blob);
+    });
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+    const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+    const wavBuffer = audioBufferToWav(decoded);
+    const wavBlob = new Blob([wavBuffer], { type: "audio/wav" });
+
+    return new File([wavBlob], "recording.wav", { type: "audio/wav" });
+  };
+
+  const audioBufferToWav = (audioBuffer) => {
+    const numChannels = audioBuffer.numberOfChannels;
+    const sampleRate = audioBuffer.sampleRate;
+    const numFrames = audioBuffer.length;
+    const bytesPerSample = 2;
+    const blockAlign = numChannels * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + numFrames * blockAlign);
+    const view = new DataView(buffer);
+
+    const writeString = (offset, string) => {
+      for (let i = 0; i < string.length; i += 1) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+
+    writeString(0, "RIFF");
+    view.setUint32(4, 36 + numFrames * blockAlign, true);
+    writeString(8, "WAVE");
+    writeString(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bytesPerSample * 8, true);
+    writeString(36, "data");
+    view.setUint32(40, numFrames * blockAlign, true);
+
+    let offset = 44;
+    for (let i = 0; i < numFrames; i += 1) {
+      for (let channel = 0; channel < numChannels; channel += 1) {
+        const sample = audioBuffer.getChannelData(channel)[i];
+        const clamped = Math.max(-1, Math.min(1, sample));
+        view.setInt16(
+          offset,
+          clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff,
+          true,
+        );
+        offset += bytesPerSample;
+      }
+    }
+
+    return buffer;
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-white mb-2">
-          Audio Emotion Analyzer
+    <div className="min-h-screen bg-[#05040D] text-slate-100 p-8">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-xl font-bold text-white mb-2">
+          Echoes of Emotion (Audio Emotion Analyzer)
         </h1>
-        <p className="text-purple-200 mb-8">
-          Analyze emotional patterns in speech using AI models
+        <p className="text-purple-200 mb-2">
+          Visualizing the Sound of Emotions through Spectrograms
         </p>
 
-        <AudioInput
-          audioFile={audioFile}
-          recordedBlob={recordedBlob}
-          isRecording={isRecording}
-          fileInputRef={fileInputRef}
-          onFileClick={() => fileInputRef.current?.click()}
-          onFileChange={handleFileUpload}
-          onRecordToggle={isRecording ? stopRecording : startRecording}
-        />
+        <div className="grid gap-8 lg:grid-cols-[0.95fr_1.5fr]">
+          <div className="space-y-8">
+            <AudioInput
+              audioFile={audioFile}
+              recordedBlob={recordedBlob}
+              isRecording={isRecording}
+              fileInputRef={fileInputRef}
+              onFileClick={() => fileInputRef.current?.click()}
+              onFileChange={handleFileUpload}
+              onRecordToggle={isRecording ? stopRecording : startRecording}
+            />
 
-        <ModelSelection
-          models={models}
-          selectedModels={selectedModels}
-          toggleModel={toggleModel}
-        />
+            <ModelSelection
+              availableModels={availableModels}
+              selectedModel={selectedModel}
+              onModelChange={setSelectedModel}
+            />
 
-        <button
-          onClick={generateSpectrograms}
-          disabled={isGenerating}
-          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-600 text-white rounded-xl p-4 font-semibold text-lg mb-8 transition-all transform hover:scale-[1.02] disabled:scale-100"
-        >
-          {isGenerating ? "Generating..." : "Generate Spectrograms"}
-        </button>
+            <button
+              onClick={analyzeEmotions}
+              disabled={isAnalyzing}
+              className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 disabled:from-slate-700 disabled:to-slate-700 text-white rounded-3xl p-4 font-semibold text-lg mb-8 transition-all transform hover:scale-[1.01] disabled:scale-100"
+            >
+              {isAnalyzing ? "Analyzing..." : "Analyze Emotions"}
+            </button>
+          </div>
 
-        <SpectrogramResults spectrograms={spectrograms} />
+          <div className="space-y-8">
+            {emotionResults ? (
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowSpectrogram(true)}
+                    className={`flex-1 py-2 px-4 rounded-xl font-semibold transition-all ${
+                      showSpectrogram
+                        ? "bg-violet-600 text-white shadow-lg"
+                        : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                    }`}
+                  >
+                    Spectrogram
+                  </button>
+                  <button
+                    onClick={() => setShowSpectrogram(false)}
+                    className={`flex-1 py-2 px-4 rounded-xl font-semibold transition-all ${
+                      !showSpectrogram
+                        ? "bg-violet-600 text-white shadow-lg"
+                        : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                    }`}
+                  >
+                    Analysis
+                  </button>
+                </div>
+
+                {showSpectrogram ? (
+                  <SpectrogramResults
+                    spectrogram={emotionResults.spectrogramData}
+                    duration={emotionResults.duration}
+                    sampleRate={emotionResults.sampleRate}
+                    segments={emotionResults.segments}
+                  />
+                ) : (
+                  <EmotionResults emotionResults={emotionResults} />
+                )}
+              </div>
+            ) : (
+              <div className="rounded-3xl bg-slate-950/90 p-8 border border-violet-600/20 text-slate-200 shadow-2xl shadow-purple-950/20">
+                <h2 className="text-2xl font-semibold mb-3">
+                  Ready to analyze
+                </h2>
+                <p className="text-slate-300 leading-relaxed">
+                  Select or record audio in the left panel, choose a model, then
+                  click Analyze Emotions. Results appear in the right panel.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

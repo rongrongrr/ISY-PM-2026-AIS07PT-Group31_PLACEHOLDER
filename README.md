@@ -205,6 +205,106 @@ npm run dev
 
 ---
 
+## End-to-End Workflow
+
+### Step 1: Prepare Backend (Terminal 1)
+
+```bash
+cd SystemCode/backend
+source venv/bin/activate        # macOS/Linux or venv\Scripts\activate on Windows
+python -m app.main
+```
+
+Wait for: `Application startup complete`
+
+### Step 2: Prepare Frontend (Terminal 2)
+
+```bash
+cd SystemCode/frontend
+npm run dev
+```
+
+Wait for: `Local: http://localhost:5173/`
+
+### Step 3: Use the Application
+
+1. Open browser → **http://localhost:5173**
+2. Click **"Upload Audio File"** or **"Record Audio"**
+3. Select audio or record your voice
+4. Click **"Analyze Emotions"**
+5. View results:
+   - Top emotion with confidence %
+   - Emotion probabilities (bar chart)
+   - Spectrogram visualization
+
+### Step 4: Enable Real Model (When Ready)
+
+Once you've trained your model and saved it as `data/training/model.pth`:
+
+**Edit:** `SystemCode/backend/app/api/routes.py` (line 15)
+
+```python
+USE_DUMMY_MODELS = False  # Change from True
+```
+
+Then restart backend:
+
+```bash
+# Stop: Ctrl+C
+# Restart: python -m app.main
+```
+
+---
+
+## Data Flow Diagram
+
+```
+┌─────────────────────────────┐
+│      Frontend (React)       │
+│   http://localhost:5173     │
+└──────────────┬──────────────┘
+               │
+        Audio Blob (.mp3/.wav)
+               │
+               ▼
+   ┌───────────────────────┐
+   │  Backend (FastAPI)    │
+   │ http://localhost:8000 │
+   └──────────┬────────────┘
+              │
+              ├─ 1. Load audio bytes
+              ├─ 2. Resample to 16 kHz
+              ├─ 3. Generate mel-spectrogram
+              └─ 4. Run inference
+              │
+              ▼
+   ┌───────────────────────┐
+   │   ResNet50 Model      │
+   │    model.pth          │
+   │  (Trained on CREMA-D) │
+   └──────────┬────────────┘
+              │
+         Softmax Probabilities
+              │
+              ▼
+    JSON Response
+  {
+    emotions: {
+      ANG: 0.05,
+      DIS: 0.08,
+      FEA: 0.12,
+      HAP: 0.55,
+      NEU: 0.15,
+      SAD: 0.05
+    },
+    top_emotion: "HAP",
+    confidence: 0.55,
+    spectrogram: "base64_image"
+  }
+```
+
+---
+
 ## Testing the Application
 
 ### 1. Open Browser

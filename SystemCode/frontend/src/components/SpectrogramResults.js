@@ -1,195 +1,171 @@
 import React from "react";
 
-export default function SpectrogramResults({ spectrograms }) {
-  if (!spectrograms || spectrograms.length === 0) return null;
+const MAX_DISPLAY_COLUMNS = 220;
+
+const segmentLegend = {
+  Happy: "#fbbf24",
+  Sad: "#60a5fa",
+  Angry: "#ef4444",
+  Neutral: "#9ca3af",
+  Surprised: "#a78bfa",
+  Fear: "#8b5cf6",
+  Disgust: "#10b981",
+};
+
+export default function SpectrogramResults({
+  spectrogram,
+  duration,
+  sampleRate,
+  segments = [],
+}) {
+  if (!Array.isArray(spectrogram) || spectrogram.length === 0) {
+    return null;
+  }
+
+  const numRows = spectrogram.length;
+  const numCols = spectrogram[0]?.length || 0;
+  const displayCols = Math.min(MAX_DISPLAY_COLUMNS, numCols);
+  const columnStep = Math.max(1, Math.floor(numCols / displayCols));
+
+  const downsampledSpectrogram = spectrogram.map((row) => {
+    const columns = [];
+    for (let i = 0; i < displayCols; i += 1) {
+      const index = Math.min(i * columnStep, numCols - 1);
+      columns.push(row[index] ?? 0);
+    }
+    return columns;
+  });
+
+  const tickCount = 5;
+  const ticks = Array.from({ length: tickCount }, (_, index) => {
+    const time = (duration * index) / (tickCount - 1);
+    const x = Math.round((displayCols * index) / (tickCount - 1));
+    return { time, x };
+  });
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white">Results</h2>
+    <div className="bg-white/10 backdrop-blur-md rounded-xl p-5 border border-white/20">
+      <div className="flex flex-col gap-2">
+        <div>
+          <p className="text-xs text-slate-400 mt-0">
+            {numRows} bins × {numCols} frames @ {sampleRate} Hz
+          </p>
+        </div>
 
-      {spectrograms.map((spec, idx) => (
-        <div
-          key={idx}
-          className="bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20"
-        >
-          <h3 className="text-lg font-semibold text-white mb-4">
-            {spec.modelName}
-          </h3>
-
-          <div className="bg-slate-900 rounded-lg p-4 mb-4">
-            <svg width="100%" height="280" className="rounded">
-              <defs>
-                <linearGradient
-                  id={`grad-${idx}`}
-                  x1="0%"
-                  y1="0%"
-                  x2="0%"
-                  y2="100%"
-                >
-                  <stop
-                    offset="0%"
-                    style={{ stopColor: "#8b5cf6", stopOpacity: 0.8 }}
-                  />
-                  <stop
-                    offset="50%"
-                    style={{ stopColor: "#ec4899", stopOpacity: 0.6 }}
-                  />
-                  <stop
-                    offset="100%"
-                    style={{ stopColor: "#3b82f6", stopOpacity: 0.4 }}
-                  />
-                </linearGradient>
-              </defs>
-
-              {(spec.spectrogramData || []).map((height, i) => {
-                const x = (i / spec.spectrogramData.length) * 100;
-                const normalizedHeight = height;
-                const y = 100 - normalizedHeight / 2;
-
-                return (
-                  <rect
-                    key={i}
-                    x={`${x}%`}
-                    y={y}
-                    width={`${0.8 / (spec.spectrogramData.length / 100)}%`}
-                    height={normalizedHeight}
-                    fill={`url(#grad-${idx})`}
-                    opacity={0.3 + Math.random() * 0.5}
-                  />
-                );
-              })}
-
-              {[0, 25, 50, 75, 100].map((y) => (
-                <line
-                  key={y}
-                  x1="0"
-                  y1={y * 2}
-                  x2="100%"
-                  y2={y * 2}
-                  stroke="rgba(255,255,255,0.1)"
-                  strokeWidth="1"
+        <div className="rounded-lg overflow-hidden bg-slate-950 shadow-inner">
+          <svg
+            viewBox={`0 0 ${displayCols} ${numRows}`}
+            preserveAspectRatio="xMidYMid slice"
+            className="w-full h-[250px]"
+          >
+            {downsampledSpectrogram.map((row, rowIdx) =>
+              row.map((value, colIdx) => (
+                <rect
+                  key={`${rowIdx}-${colIdx}`}
+                  x={colIdx}
+                  y={rowIdx}
+                  width="1"
+                  height="1"
+                  fill={valueToColor(value)}
                 />
-              ))}
+              )),
+            )}
 
-              <text x="5" y="15" fill="rgba(255,255,255,0.5)" fontSize="10">
-                High
-              </text>
-              <text x="5" y="105" fill="rgba(255,255,255,0.5)" fontSize="10">
-                Mid
-              </text>
-              <text x="5" y="195" fill="rgba(255,255,255,0.5)" fontSize="10">
-                Low
-              </text>
+            {segments.map((segment, index) => {
+              const startX = Math.round(
+                (segment.start / duration) * displayCols,
+              );
+              const endX = Math.round((segment.end / duration) * displayCols);
+              return (
+                <rect
+                  key={`segment-${index}`}
+                  x={Math.max(0, startX)}
+                  y={numRows - 4}
+                  width={Math.max(1, endX - startX)}
+                  height="4"
+                  fill={segmentColor(segment.emotion)}
+                  opacity="0.7"
+                />
+              );
+            })}
+          </svg>
 
-              <line
-                x1="0"
-                y1="210"
-                x2="100%"
-                y2="210"
-                stroke="rgba(255,255,255,0.3)"
-                strokeWidth="2"
-              />
-
-              {Array.from({ length: Math.ceil(spec.duration) + 1 }).map(
-                (_, i) => {
-                  const x = (i / spec.duration) * 100;
-                  return (
-                    <g key={i}>
-                      <line
-                        x1={`${x}%`}
-                        y1="210"
-                        x2={`${x}%`}
-                        y2="215"
-                        stroke="rgba(255,255,255,0.5)"
-                        strokeWidth="1"
-                      />
-                      <text
-                        x={`${x}%`}
-                        y="227"
-                        fill="rgba(255,255,255,0.6)"
-                        fontSize="10"
-                        textAnchor="middle"
-                      >
-                        {i}s
-                      </text>
-                    </g>
-                  );
-                },
-              )}
-
-              {spec.emotions.map((emotion, i) => {
-                const startX = (emotion.start / spec.duration) * 100;
-                const endX = (emotion.end / spec.duration) * 100;
-                const centerX = (startX + endX) / 2;
-                const width = endX - startX;
-                const label =
-                  emotion.label ?? emotion.emotion ?? emotion.name ?? "Unknown";
-                const confidence =
-                  typeof emotion.confidence === "number"
-                    ? emotion.confidence
-                    : (emotion.confidence ?? null);
-
-                return (
-                  <g key={i}>
-                    <rect
-                      x={`${startX}%`}
-                      y="235"
-                      width={`${width}%`}
-                      height="12"
-                      fill={getEmotionColor(label)}
-                      opacity={0.35}
-                    />
-                    <text
-                      x={`${centerX}%`}
-                      y="244"
-                      fill={getEmotionColor(label)}
-                      fontSize="12"
-                      textAnchor="middle"
-                    >
-                      {label}
-                    </text>
-                    {confidence != null && (
-                      <text
-                        x={`${centerX}%`}
-                        y="258"
-                        fill={hexToRgba(getEmotionColor(label), 0.85)}
-                        fontSize="10"
-                        textAnchor="middle"
-                      >
-                        {(confidence * 100).toFixed(0)}%
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-            </svg>
+          {/* Time axis labels rendered as HTML */}
+          <div className="flex justify-between px-1 pt-1 text-xs text-slate-400">
+            {ticks.map((tick, index) => (
+              <span key={`label-${index}`} className="flex-1 text-center">
+                {tick.time.toFixed(1)}s
+              </span>
+            ))}
           </div>
         </div>
-      ))}
+
+        <div className="grid gap-2 md:grid-cols-2">
+          <div className="rounded-lg bg-slate-900/80 p-2 border border-violet-500/10">
+            <h3 className="text-xs font-semibold text-white">Summary</h3>
+            <p className="text-xs text-slate-300 mt-1">
+              Duration: <strong>{formatSeconds(duration)}</strong>
+            </p>
+            <p className="text-xs text-slate-300">
+              Rate: <strong>{sampleRate} Hz</strong>
+            </p>
+          </div>
+
+          <div className="rounded-lg bg-slate-900/80 p-2 border border-violet-500/10">
+            <h3 className="text-xs font-semibold text-white">Legend</h3>
+            <div className="mt-1 grid gap-1 sm:grid-cols-2">
+              {Object.entries(segmentLegend).map(([emotion, color]) => (
+                <div key={emotion} className="flex items-center gap-1">
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="text-xs text-slate-300">{emotion}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg bg-slate-900/80 p-2 border border-white/10">
+          <h3 className="text-xs font-semibold text-white">Segments</h3>
+          {segments.length > 0 ? (
+            <div className="space-y-1 mt-1 max-h-[80px] overflow-y-auto">
+              {segments.map((segment, index) => (
+                <div
+                  key={index}
+                  className="rounded text-xs bg-slate-800/90 p-1 border border-white/10"
+                >
+                  <p className="text-slate-300">
+                    <strong>{segment.emotion}</strong> {segment.start}-
+                    {segment.end}s
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400 mt-1">No segments</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
-// Helper (kept here for readability)
-function getEmotionColor(emotion) {
-  const colors = {
-    Happy: "#fbbf24",
-    Sad: "#60a5fa",
-    Angry: "#ef4444",
-    Neutral: "#9ca3af",
-    Surprised: "#a78bfa",
-    Fear: "#8b5cf6",
-    Disgust: "#10b981",
-  };
-  return colors[emotion] || "#9ca3af";
+function valueToColor(value) {
+  const clipped = Math.max(0, Math.min(1, value));
+  const hue = 240 - clipped * 240;
+  const lightness = 30 + clipped * 35;
+  return `hsl(${hue}, 85%, ${lightness}%)`;
 }
 
-// convert hex like #rrggbb to rgba() with given alpha
-function hexToRgba(hex, alpha = 1) {
-  const h = hex.replace("#", "");
-  const bigint = parseInt(h, 16);
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+function segmentColor(emotion) {
+  return segmentLegend[emotion] || "#7c3aed";
+}
+
+function formatSeconds(seconds) {
+  if (typeof seconds !== "number" || Number.isNaN(seconds)) {
+    return "0.00 s";
+  }
+  return `${seconds.toFixed(2)} s`;
 }
