@@ -102,7 +102,7 @@ export default function AudioEmotionAnalyzer() {
       audioFile = await convertBlobToWavFile(audio);
     }
 
-    const results = await analyzeEmotion(audioFile);
+    const results = await analyzeEmotion(audioFile, selectedModel);
     return results;
   };
 

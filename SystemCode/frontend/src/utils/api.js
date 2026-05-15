@@ -21,6 +21,11 @@ export async function fetchAvailableModels() {
           name: "ResNet50 v1",
           description: "Pretrained ResNet50 on CREMA-D dataset",
         },
+        {
+          id: "model_yolo.pt",
+          name: "YOLO11s-cls v1",
+          description: "Ultralytics YOLO11s classifier on CREMA-D dataset",
+        },
       ];
     }
 
@@ -30,9 +35,14 @@ export async function fetchAvailableModels() {
     // Return a default model as fallback
     return [
       {
-        id: "model_resnet_50.pth",
+        id: "model_resnet50.pth",
         name: "ResNet50 v1",
         description: "Pretrained ResNet50 on CREMA-D dataset",
+      },
+      {
+        id: "model_yolo.pt",
+        name: "YOLO11s-cls v1",
+        description: "Ultralytics YOLO11s classifier on CREMA-D dataset",
       },
     ];
   }
@@ -61,9 +71,12 @@ export async function analyzeAudio(audioFile, selectedModels) {
   return data;
 }
 
-export async function analyzeEmotion(audioFile) {
+export async function analyzeEmotion(audioFile, modelId) {
   const formData = new FormData();
   formData.append("audio", audioFile);
+  if (modelId) {
+    formData.append("model_id", modelId);
+  }
 
   const response = await fetch(`${API_BASE_URL}/analyze-emotion`, {
     method: "POST",
