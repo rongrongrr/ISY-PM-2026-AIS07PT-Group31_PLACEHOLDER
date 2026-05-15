@@ -114,7 +114,14 @@ async def analyze_audio(
             spectrogram_data = generate_spectrogram(audio_data, sr)
             model_image = generate_model_input_image(audio_data, sr)
             resolved_id = model_id if model_id in available_model_ids() else DEFAULT_MODEL_ID
-            emotion_probs = get_predictor(resolved_id).predict(model_image)
+            try:
+                emotion_probs = get_predictor(resolved_id).predict(model_image)
+            except FileNotFoundError as exc:
+                from fastapi import HTTPException
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Model weights not available for '{resolved_id}': {exc}",
+                )
             top_emotion = max(emotion_probs, key=emotion_probs.get)
             confidence = float(emotion_probs[top_emotion])
             segments = [
