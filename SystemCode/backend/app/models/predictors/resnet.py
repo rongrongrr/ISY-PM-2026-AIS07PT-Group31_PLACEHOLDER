@@ -37,7 +37,7 @@ class ResNetPredictor:
             return
         if not os.path.exists(self._weight_path):
             raise FileNotFoundError(self._weight_path)
-        checkpoint = torch.load(self._weight_path, map_location=_DEVICE)
+        checkpoint = torch.load(self._weight_path, map_location=_DEVICE, weights_only=True)
         if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
             state_dict = checkpoint["model_state_dict"]
         else:
