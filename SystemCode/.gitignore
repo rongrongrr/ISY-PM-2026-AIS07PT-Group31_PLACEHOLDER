@@ -49,5 +49,12 @@ coverage.xml
 # Training data (should remain local)
 data/training/data/*
 
+# YOLO training artifacts (regenerated locally, do not commit)
+# Note: model_yolo.pt is intentionally tracked, like model_resnet50.pth
+data/training/yolo_dataset/
+data/training/runs/
+data/training/yolo11n.pt
+data/training/yolo11s-cls.pt
+
 # Mac
 .DS_Store

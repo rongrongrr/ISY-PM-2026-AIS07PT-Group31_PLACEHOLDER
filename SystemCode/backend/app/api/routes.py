@@ -5,8 +5,8 @@ import numpy as np
 import os
 from pathlib import Path
 from app.services.audio_processor import process_audio
-from app.services.spectrogram import generate_spectrogram, generate_spectrogram_for_model
-from app.models.emotion_model import predict_emotion
+from app.services.spectrogram import generate_spectrogram, generate_model_input_image
+from app.models.predictors.registry import get_predictor, available_model_ids, DEFAULT_MODEL_ID
 
 router = APIRouter()
 
@@ -16,6 +16,11 @@ MODEL_CONFIG = {
         "id": "model_resnet50.pth",
         "name": "ResNet50 v1",
         "description": "Pretrained ResNet50 on CREMA-D dataset"
+    },
+    "model_yolo.pt": {
+        "id": "model_yolo.pt",
+        "name": "YOLO11s-cls v1",
+        "description": "Ultralytics YOLO11s classifier on CREMA-D dataset"
     }
 }
 
@@ -107,8 +112,16 @@ async def analyze_audio(
             segments = generate_dummy_emotions(duration)
         else:
             spectrogram_data = generate_spectrogram(audio_data, sr)
-            model_spec = generate_spectrogram_for_model(audio_data, sr)
-            emotion_probs = predict_emotion(model_spec)
+            model_image = generate_model_input_image(audio_data, sr)
+            resolved_id = model_id if model_id in available_model_ids() else DEFAULT_MODEL_ID
+            try:
+                emotion_probs = get_predictor(resolved_id).predict(model_image)
+            except FileNotFoundError as exc:
+                from fastapi import HTTPException
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Model weights not available for '{resolved_id}': {exc}",
+                )
             top_emotion = max(emotion_probs, key=emotion_probs.get)
             confidence = float(emotion_probs[top_emotion])
             segments = [
@@ -141,17 +154,36 @@ async def analyze_audio(
 
 
 @router.post("/analyze-emotion")
-async def analyze_emotion(audio: UploadFile = File(...)):
+async def analyze_emotion(
+    audio: UploadFile = File(...),
+    model_id: str = Form(None),
+):
     """
     Analyze audio file and return emotion predictions and spectrogram data
     """
+    selected_id = model_id or DEFAULT_MODEL_ID
+    if selected_id not in available_model_ids():
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown model_id '{selected_id}'. Available: {available_model_ids()}",
+        )
+
     audio_bytes = await audio.read()
     audio_data, sr = process_audio(audio_bytes, filename=audio.filename)
     duration = len(audio_data) / sr
 
     spectrogram_data = generate_spectrogram(audio_data, sr)
-    model_spec = generate_spectrogram_for_model(audio_data, sr)
-    emotion_probs = predict_emotion(model_spec)
+    model_image = generate_model_input_image(audio_data, sr)
+
+    try:
+        emotion_probs = get_predictor(selected_id).predict(model_image)
+    except FileNotFoundError as exc:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=503,
+            detail=f"Model weights not available for '{selected_id}': {exc}",
+        )
 
     top_emotion = max(emotion_probs, key=emotion_probs.get)
     top_emotion_name = localize_emotion_label(top_emotion)
@@ -215,27 +247,3 @@ def generate_dummy_emotions(duration: float):
     
     return emotions
 
-def predict_emotions(audio_data, sr, model_id):
-    """
-    Predict emotions using the trained model
-    """
-    # Generate spectrogram for model
-    spectrogram = generate_spectrogram_for_model(audio_data, sr)
-    
-    # Get emotion predictions
-    emotion_probs = predict_emotion(spectrogram)
-    
-    # Convert to the expected format (list of segments)
-    # For now, return a single segment with the top emotion
-    duration = len(audio_data) / sr
-    top_emotion = max(emotion_probs, key=emotion_probs.get)
-    confidence = emotion_probs[top_emotion]
-    
-    return [
-        {
-            "start": 0.0,
-            "end": round(duration, 2),
-            "emotion": top_emotion,
-            "confidence": round(confidence, 2)
-        }
-    ]
