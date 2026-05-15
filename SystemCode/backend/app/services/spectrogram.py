@@ -60,5 +60,8 @@ def generate_model_input_image(audio_data, sr):
 
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=MODEL_DPI, bbox_inches="tight", pad_inches=0)
+    fig.clf()
     buf.seek(0)
-    return Image.open(buf).convert("RGB")
+    image = Image.open(buf).convert("RGB")
+    buf.close()
+    return image
