@@ -2,11 +2,12 @@ import os
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
+from app.models.predictors.device import select_torch_device
 
 EMOTION_LABELS = ["ANG", "DIS", "FEA", "HAP", "NEU", "SAD"]
 IMAGE_SIZE = 224
 
-_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+_DEVICE = select_torch_device()
 
 _TRANSFORM = transforms.Compose([
     transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),

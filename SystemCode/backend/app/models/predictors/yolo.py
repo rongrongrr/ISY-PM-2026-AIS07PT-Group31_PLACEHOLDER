@@ -1,5 +1,6 @@
 import os
 from ultralytics import YOLO
+from app.models.predictors.device import select_torch_device
 
 EMOTION_LABELS = ["ANG", "DIS", "FEA", "HAP", "NEU", "SAD"]
 
@@ -18,7 +19,9 @@ class YoloPredictor:
 
     def predict(self, image):
         self._load()
-        result = self._model.predict(image, verbose=False)[0]
+        device = select_torch_device()
+        ultra_device = "cpu" if device.type == "cpu" else 0
+        result = self._model.predict(image, verbose=False, device=ultra_device)[0]
         names = result.names
         probs = result.probs.data.tolist()
         scored = {names[i]: float(p) for i, p in enumerate(probs)}
