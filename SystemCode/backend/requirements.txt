@@ -10,3 +10,6 @@ torchaudio==2.2.2
 torchvision==0.17.2
 python-dotenv==1.0.0
 pydantic==2.5.0
+matplotlib==3.8.4
+pillow==10.3.0
+ultralytics==8.3.0
