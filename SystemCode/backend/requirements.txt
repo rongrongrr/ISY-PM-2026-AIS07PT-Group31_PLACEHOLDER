@@ -11,6 +11,6 @@ torchvision==0.17.2
 pydantic==2.5.0
 matplotlib==3.8.4
 pillow==10.3.0
-setuptools>=68.0.0
+setuptools>=68.0.0,<81
 ultralytics==8.3.0
 resampy==0.4.2
