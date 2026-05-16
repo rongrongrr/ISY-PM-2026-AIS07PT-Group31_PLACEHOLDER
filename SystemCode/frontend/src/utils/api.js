@@ -32,6 +32,11 @@ export async function fetchAvailableModels() {
           description:
             "Classical ML baseline using MFCC and spectral audio features",
         },
+        {
+          id: "model_efficientnetb0.pth",
+          name: "EfficientNet-B0 v1",
+          description: "Fine-tuned EfficientNet-B0 on CREMA-D spectrograms",
+        },
       ];
     }
 
@@ -55,6 +60,11 @@ export async function fetchAvailableModels() {
         name: "MFCC SVM Baseline",
         description:
           "Classical ML baseline using MFCC and spectral audio features",
+      },
+      {
+        id: "model_efficientnetb0.pth",
+        name: "EfficientNet-B0 v1",
+        description: "Fine-tuned EfficientNet-B0 on CREMA-D spectrograms",
       },
     ];
   }

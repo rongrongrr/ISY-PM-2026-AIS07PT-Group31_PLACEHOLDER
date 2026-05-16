@@ -1,4 +1,7 @@
 from pathlib import Path
+from app.models.predictors.resnet import ResNetPredictor
+from app.models.predictors.yolo import YoloPredictor
+from app.models.predictors.efficientnet import EfficientNetPredictor
 
 _MODELS_DIR = Path(__file__).resolve().parents[4] / "data" / "training"
 
@@ -22,11 +25,16 @@ def _create_mfcc_predictor():
 
     return MfccPredictor(str(_MODELS_DIR / "ml" / "model_mfcc_svm.joblib"))
 
+def _create_efficientnet_predictor():
+    from app.models.predictors.efficientnet import EfficientNetPredictor
+
+    return EfficientNetPredictor(str(_MODELS_DIR / "model_efficientnetb0.pth"))
 
 _FACTORIES = {
     "model_resnet50.pth": _create_resnet_predictor,
     "model_yolo.pt": _create_yolo_predictor,
     "model_mfcc_svm.joblib": _create_mfcc_predictor,
+    "model_efficientnetb0.pth":_create_efficientnet_predictor,
 }
 
 _CACHE = {}

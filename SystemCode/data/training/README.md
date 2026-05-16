@@ -151,6 +151,8 @@ python predict_mfcc_model.py ../../../datasets/test/HAP/1001_IEO_HAP_HI.wav --mo
 
 If that exact filename is not present, choose any `.wav` file from one of the `../../../datasets/test/<LABEL>/` folders.
 
+> Tip: to expose the MFCC SVM Baseline via the backend API, keep the trained file at `SystemCode/data/training/ml/model_mfcc_svm.joblib`. The backend recognizes it as model id `model_mfcc_svm.joblib` and the frontend labels it "MFCC SVM Baseline".
+
 ### Useful options
 
 ```bash

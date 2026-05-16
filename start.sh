@@ -17,7 +17,7 @@ command -v python3 >/dev/null 2>&1 || { echo "python3 not found. Install Python 
 command -v node    >/dev/null 2>&1 || { echo "node not found. Install Node.js 20+ and retry."; exit 1; }
 command -v npm     >/dev/null 2>&1 || { echo "npm not found. Install npm (bundled with Node.js) and retry."; exit 1; }
 
-for m in model_resnet50.pth model_yolo.pt; do
+for m in model_resnet50.pth model_yolo.pt model_efficientnetb0.pth; do
   if [ ! -f "$MODELS_DIR/$m" ]; then
     echo "Missing model file: $MODELS_DIR/$m"
     echo "Your checkout is incomplete. Ensure the repo (including tracked weights under SystemCode/data/training/) is fully pulled."

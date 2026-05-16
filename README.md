@@ -41,6 +41,8 @@ flowchart LR
     be --> reg["Predictor registry"]
     reg --> resnet["ResNet50<br/>model_resnet50.pth (default)"]
     reg --> yolo["YOLO11s-cls<br/>model_yolo.pt"]
+    reg --> efficientnet["EfficientNet-B0<br/>model_efficientnetb0.pth"]
+    reg --> mfcc["MFCC SVM Baseline<br/>ml/model_mfcc_svm.joblib"]
 ```
 
 A single analysis request flows like this:
@@ -72,7 +74,7 @@ Declare new dependencies in the manifest and commit them — backend in `SystemC
 SystemCode/
   backend/          FastAPI service + model inference
   frontend/         React + Vite UI
-  data/training/    trained weights (model_resnet50.pth, model_yolo.pt)
+  data/training/    trained weights (model_resnet50.pth, model_yolo.pt, model_efficientnetb0.pt)
 ```
 
 Component details: `SystemCode/backend/README.md`, `SystemCode/frontend/README.md`.

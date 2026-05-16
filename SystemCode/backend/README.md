@@ -33,7 +33,7 @@ backend/app/
     device.py                   CUDA/CPU selection
 ```
 
-Weights load from `SystemCode/data/training/` (`model_resnet50.pth`, `model_yolo.pt`) and are registered in `registry.py`; `model_resnet50.pth` is the default. Inference uses CUDA automatically when available, otherwise CPU.
+Weights load from `SystemCode/data/training/` (`model_resnet50.pth`, `model_yolo.pt`, `model_efficientnetb0.pth`) and the optional MFCC baseline from `SystemCode/data/training/ml/model_mfcc_svm.joblib`; all models are registered in `registry.py`. `model_resnet50.pth` is the default. Inference uses CUDA automatically when available, otherwise CPU.
 
 ## Pipeline
 

@@ -34,6 +34,8 @@ export default function EmotionResults({ emotionResults }) {
     SAD: "#60a5fa",
   };
 
+  const formatPercent = (value) => (value * 100).toFixed(1);
+
   return (
     <div className="space-y-3">
       {/* Row with Primary Emotion + Probabilities */}
@@ -51,7 +53,7 @@ export default function EmotionResults({ emotionResults }) {
               {emotionLabels[topEmotion] || topEmotion}
             </div>
             <p className="text-purple-200 text-xs mt-2">
-              Confidence: {(confidence * 100).toFixed(1)}%
+              Confidence: {formatPercent(confidence)}%
             </p>
           </div>
         </div>
@@ -71,13 +73,13 @@ export default function EmotionResults({ emotionResults }) {
                   <div
                     className="h-3 rounded-full transition-all duration-500"
                     style={{
-                      width: `${probability * 100}%`,
+                      width: `${Math.min(100, probability * 100)}%`,
                       backgroundColor: emotionColors[emotion],
                     }}
                   ></div>
                 </div>
                 <div className="w-10 text-xs text-white text-right">
-                  {(probability * 100).toFixed(0)}%
+                  {formatPercent(probability)}%
                 </div>
               </div>
             ))}
@@ -95,7 +97,7 @@ export default function EmotionResults({ emotionResults }) {
                 className="w-12 h-12 rounded-full mx-auto mb-1 flex items-center justify-center text-white font-bold text-sm"
                 style={{ backgroundColor: emotionColors[emotion] }}
               >
-                {(probability * 100).toFixed(0)}%
+                {formatPercent(probability)}%
               </div>
               <p className="text-white text-xs">
                 {emotionLabels[emotion] || emotion}

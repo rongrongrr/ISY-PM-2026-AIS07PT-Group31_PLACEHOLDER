@@ -30,6 +30,12 @@ MODEL_CONFIG = {
         "description": "Classical ML baseline using MFCC and spectral audio features",
         "path": "ml/model_mfcc_svm.joblib",
     },
+     "model_efficientnetb0.pth": {
+        "id": "model_efficientnetb0.pth",
+        "name": "EfficientNet-B0 v1",
+        "description": "Fine-tuned EfficientNet-B0 on CREMA-D spectrograms",
+        "path": "model_efficientnetb0.pth",
+    },
 }
 
 EMOTION_LABELS = {
