@@ -48,7 +48,7 @@ class ResNetPredictor:
         model.eval()
         self._model = model
 
-    def predict(self, image):
+    def predict(self, image, audio_data=None, sr=None):
         self._load()
         tensor = _TRANSFORM(image).unsqueeze(0).to(_DEVICE)
         with torch.no_grad():

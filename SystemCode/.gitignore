@@ -48,6 +48,9 @@ coverage.xml
 
 # Training data (should remain local)
 data/training/data/*
+datasets/*
+data/training/ml/*.joblib
+data/training/ml/*.npz
 
 # YOLO training artifacts (regenerated locally, do not commit)
 # Note: model_yolo.pt is intentionally tracked, like model_resnet50.pth

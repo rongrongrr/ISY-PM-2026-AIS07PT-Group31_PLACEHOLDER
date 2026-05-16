@@ -15,13 +15,21 @@ MODEL_CONFIG = {
     "model_resnet50.pth": {
         "id": "model_resnet50.pth",
         "name": "ResNet50 v1",
-        "description": "Pretrained ResNet50 on CREMA-D dataset"
+        "description": "Pretrained ResNet50 on CREMA-D dataset",
+        "path": "model_resnet50.pth",
     },
     "model_yolo.pt": {
         "id": "model_yolo.pt",
         "name": "YOLO11s-cls v1",
-        "description": "Ultralytics YOLO11s classifier on CREMA-D dataset"
-    }
+        "description": "Ultralytics YOLO11s classifier on CREMA-D dataset",
+        "path": "model_yolo.pt",
+    },
+    "model_mfcc_svm.joblib": {
+        "id": "model_mfcc_svm.joblib",
+        "name": "MFCC SVM Baseline",
+        "description": "Classical ML baseline using MFCC and spectral audio features",
+        "path": "ml/model_mfcc_svm.joblib",
+    },
 }
 
 EMOTION_LABELS = {
@@ -58,7 +66,7 @@ async def list_available_models():
         
         # First try to find models in MODEL_CONFIG
         for model_id, config in MODEL_CONFIG.items():
-            model_path = models_dir / model_id
+            model_path = models_dir / config.get("path", model_id)
             print(f"[DEBUG] Checking {model_id}: exists={model_path.exists()}")
             if model_path.exists():
                 available_models.append({
@@ -115,7 +123,7 @@ async def analyze_audio(
             model_image = generate_model_input_image(audio_data, sr)
             resolved_id = model_id if model_id in available_model_ids() else DEFAULT_MODEL_ID
             try:
-                emotion_probs = get_predictor(resolved_id).predict(model_image)
+                emotion_probs = get_predictor(resolved_id).predict(model_image, audio_data=audio_data, sr=sr)
             except FileNotFoundError as exc:
                 from fastapi import HTTPException
                 raise HTTPException(
@@ -177,7 +185,7 @@ async def analyze_emotion(
     model_image = generate_model_input_image(audio_data, sr)
 
     try:
-        emotion_probs = get_predictor(selected_id).predict(model_image)
+        emotion_probs = get_predictor(selected_id).predict(model_image, audio_data=audio_data, sr=sr)
     except FileNotFoundError as exc:
         from fastapi import HTTPException
         raise HTTPException(
@@ -213,9 +221,8 @@ async def analyze_emotion(
 
 def get_model_name(model_id: str) -> str:
     names = {
-        "baseline": "Baseline Model",
-        "advanced": "Advanced Model",
-        "ensemble": "Ensemble Model"
+        model_id: config["name"]
+        for model_id, config in MODEL_CONFIG.items()
     }
     return names.get(model_id, model_id)
 

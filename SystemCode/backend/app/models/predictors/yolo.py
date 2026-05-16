@@ -17,7 +17,7 @@ class YoloPredictor:
             raise FileNotFoundError(self._weight_path)
         self._model = YOLO(self._weight_path)
 
-    def predict(self, image):
+    def predict(self, image, audio_data=None, sr=None):
         self._load()
         device = select_torch_device()
         ultra_device = "cpu" if device.type == "cpu" else 0

@@ -26,6 +26,12 @@ export async function fetchAvailableModels() {
           name: "YOLO11s-cls v1",
           description: "Ultralytics YOLO11s classifier on CREMA-D dataset",
         },
+        {
+          id: "model_mfcc_svm.joblib",
+          name: "MFCC SVM Baseline",
+          description:
+            "Classical ML baseline using MFCC and spectral audio features",
+        },
       ];
     }
 
@@ -43,6 +49,12 @@ export async function fetchAvailableModels() {
         id: "model_yolo.pt",
         name: "YOLO11s-cls v1",
         description: "Ultralytics YOLO11s classifier on CREMA-D dataset",
+      },
+      {
+        id: "model_mfcc_svm.joblib",
+        name: "MFCC SVM Baseline",
+        description:
+          "Classical ML baseline using MFCC and spectral audio features",
       },
     ];
   }

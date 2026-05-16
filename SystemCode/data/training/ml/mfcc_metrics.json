@@ -1,0 +1,32 @@
+{
+  "validation": {
+    "accuracy": 0.5179738562091504,
+    "balanced_accuracy": 0.5168087817308635,
+    "macro_f1": 0.5145793485405886
+  },
+  "test": {
+    "accuracy": 0.5161082474226805,
+    "balanced_accuracy": 0.5152494943617876,
+    "macro_f1": 0.5125404980449718
+  },
+  "classes": [
+    "ANG",
+    "DIS",
+    "FEA",
+    "HAP",
+    "NEU",
+    "SAD"
+  ],
+  "train_samples": 4666,
+  "validation_samples": 1224,
+  "test_samples": 1552,
+  "feature_config": {
+    "target_sr": 16000,
+    "max_duration": 5.0,
+    "n_mfcc": 20,
+    "trim_silence": true,
+    "normalize_volume": true,
+    "telephone_bandpass": false
+  },
+  "classifier": "svm"
+}
